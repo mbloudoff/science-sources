@@ -24,7 +24,7 @@ class Source {
 		update_post_meta( $post_id, '_source_email', wp_slash( $data['email'] ) );
 
 		$source = new Source( $post_id );
-		$source->send_confirmation_email();
+		send_email_confirmation_email( $source );
 		return $source;
 	}
 
@@ -33,36 +33,6 @@ class Source {
 	 */
 	public function __construct( $post_id ) {
 		$this->post = get_post( $post_id );
-	}
-
-	/**
-	 * Send an email asking the user to confirm their email address.
-	 */
-	function send_confirmation_email() {
-		$email = get_post_meta( $this->post->ID, '_source_email', true );
-		$body = "Click this link to confirm your submission:\n\n%s";
-
-		$this->generate_key( 'confirm' );
-
-		$url = $this->get_email_confirmation_link();
-
-		$body = sprintf( $body, $url );
-
-		wp_mail( $email, 'Please confirm your email address', $body );
-	}
-
-	/**
-	 * Send an email telling the user their listing is live, and provides their edit link.
-	 */
-	function send_approval_email() {
-		$email = get_post_meta( $this->post->ID, '_source_email', true );
-		$body = "Thanks, your listing is now available at:\n%s";
-		$body .= "\n\nPlease keep this email. To edit your listing, click this link: %s";
-
-		$this->generate_key( 'edit' );
-		$body = sprintf( $body, $this->get_permalink(), $this->get_edit_post_link() );
-
-		wp_mail( $email, 'Listing is live', $body );
 	}
 
 	/**
@@ -76,7 +46,28 @@ class Source {
 	 * Retreive the frontend editable link for a source.
 	 */
 	function get_edit_post_link() {
-		return add_query_arg( 'edit', $this->get_key( 'edit' ), $this->get_permalink() );
+		return add_query_arg( 'edit', $this->force_get_key( 'edit' ), $this->get_permalink() );
+	}
+
+	/**
+	 * Get source's name.
+	 */
+	function get_name() {
+		return get_the_title( $this->post );
+	}
+
+	/**
+	 * Get a summary of the source's submission.
+	 */
+	function get_content() {
+		return $this->post->post_content;
+	}
+
+	/**
+	 * Get source's email.
+	 */
+	function get_email() {
+		return get_post_meta( $this->post->ID, '_source_email', true );
 	}
 
 	/**
@@ -139,22 +130,18 @@ class Source {
 	}
 
 	function get_email_confirmation_link() {
-		$key = $this->get_key( 'confirm' );
+		$key = $this->force_get_key( 'confirm' );
 		return home_url( sprintf( '/?email-confirm=%s&key=%s', $this->post->ID, $key ) );
 	}
 
-	function send_admin_pending_email() {
-		$body = "Please moderate this submission: %s\n\nPublish: %s\nTrash: %s";
-		$body = sprintf( $body, $this->post->post_title, $this->get_admin_publish_link(), $this->get_admin_trash_link() );
-		$success = wp_mail( get_option( 'admin_email' ), 'New submission', $body );
-	}
-
 	function get_admin_publish_link() {
-		return admin_url( sprintf( 'edit.php?post_type=source&source-action=publish&id=%s&nonce=%s', $this->post->ID, $this->force_get_key( 'admin' ) ) );
+		return admin_url( sprintf( 'edit.php?post_type=source&source-action=publish&id=%s&nonce=%s',
+			$this->post->ID, $this->force_get_key( 'admin' ) ) );
 	}
 
 	function get_admin_trash_link() {
-		return admin_url( sprintf( 'edit.php?post_type=source&source-action=trash&id=%s&nonce=%s', $this->post->ID, $this->force_get_key( 'admin' ) ) );
+		return admin_url( sprintf( 'edit.php?post_type=source&source-action=trash&id=%s&nonce=%s',
+			$this->post->ID, $this->force_get_key( 'admin' ) ) );
 	}
 
 	/**
@@ -185,11 +172,10 @@ class Source {
 	 */
 	function email_confirmation_attempt( $key ) {
 		$key = (string) $key;
-		$expected = $this->get_key( 'confirm' );
-		if ( $key !== '' && $key === $expected ) {
+		if ( $this->validate_key( 'confirm', $key ) ) {
 			$this->delete_key( 'confirm' );
 			wp_update_post([ 'ID' => $this->post->ID, 'post_status' => 'pending' ]);
-			$this->send_admin_pending_email();
+			send_moderator_email( $this );
 			return true;
 		}
 

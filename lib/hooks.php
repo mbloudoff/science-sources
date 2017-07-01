@@ -59,7 +59,7 @@ function transition_post_status( $new_status, $old_status, $post ) {
 
 		// If we haven't previously sent an approval email.
 		if ( ! $source->get_key( 'edit' ) ) {
-			$source->send_approval_email();
+			send_published_email( $source );
 		}
 	}
 

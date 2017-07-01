@@ -7,6 +7,7 @@
 require __DIR__ . '/lib/hooks.php';
 require __DIR__ . '/lib/admin-hooks.php';
 require __DIR__ . '/lib/source.php';
+require __DIR__ . '/lib/emails.php';
 
 ScienceSources\hooks();
 
