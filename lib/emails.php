@@ -79,7 +79,7 @@ EMAIL;
 	wp_mail( $to, $subject, $body );
 }
 
-function mail( $to, $subject, $body ) {
+function wp_mail( $to, $subject, $body ) {
 	$subject = sprintf( '[%s] %s', get_bloginfo( 'name' ), $subject );
 	\wp_mail( $to, $subject, $body );
 }
