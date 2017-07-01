@@ -29,7 +29,7 @@ function load_edit_php() {
 		$source = new Source( intval( $_GET['id'] ) );
 		$return = remove_query_arg( ['source-action', 'id', 'nonce'], wp_unslash($_SERVER['REQUEST_URI'] ) );
 
-		if ( ! $source->validate_key( 'admin', $_GET['nonce'] ) ) {
+		if ( ! $source->validate_nonce( 'admin', $_GET['nonce'] ) ) {
 			wp_redirect( add_query_arg( 'source-notice', 'invalid', $return ) );
 			exit;
 		}

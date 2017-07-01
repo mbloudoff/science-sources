@@ -19,7 +19,7 @@ function hooks() {
 function init() {
 	if ( isset( $_GET['email-confirm'] ) ) {
 		$source = new Source( intval( $_GET['email-confirm'] ) );
-		if ( $source->email_confirmation_attempt( $_GET['key'] ) ) {
+		if ( $source->email_confirmation_attempt( $_GET['nonce'] ) ) {
 			wp_die( sprintf( 'Thank you for confirming your email address. Your listing is now pending a quick moderation step. <a href="%s">Back to home</a>', home_url() ) );
 		}
 
@@ -44,7 +44,7 @@ function register_post_type() {
  *
  * 1. Send out approval emails when posts are approved
  *    for the first time.
- * 2. Delete the 'admin' secret key whenever a post is
+ * 2. Delete the 'admin' nonce whenever a post is
  *    approved or trashed.
  */
 function transition_post_status( $new_status, $old_status, $post ) {
@@ -55,16 +55,16 @@ function transition_post_status( $new_status, $old_status, $post ) {
 	$source = new Source( $post );
 
 	if ( $old_status !== 'publish' && $new_status === 'publish' ) {
-		$source->delete_key( 'admin' );
+		$source->delete_nonce( 'admin' );
 
 		// If we haven't previously sent an approval email.
-		if ( ! $source->get_key( 'edit' ) ) {
+		if ( ! $source->get_nonce( 'edit' ) ) {
 			send_published_email( $source );
 		}
 	}
 
 	if ( $old_status !== 'trash' && $new_status === 'trash' ) {
-		$source->delete_key( 'admin' );
+		$source->delete_nonce( 'admin' );
 	}
 
 }
@@ -81,7 +81,7 @@ function the_content( $content ) {
 
 	$source = new Source( $post );
 
-	if ( $source->validate_key( 'edit', $_GET['edit'] ) ) {
+	if ( $source->validate_nonce( 'edit', $_GET['edit'] ) ) {
 		return $content . "\n\n" . '<p>' . 'Edit mode activated' . '</p>';
 	}
 }

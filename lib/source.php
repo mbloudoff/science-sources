@@ -46,7 +46,7 @@ class Source {
 	 * Retreive the frontend editable link for a source.
 	 */
 	function get_edit_post_link() {
-		return add_query_arg( 'edit', $this->force_get_key( 'edit' ), $this->get_permalink() );
+		return add_query_arg( 'edit', $this->force_get_nonce( 'edit' ), $this->get_permalink() );
 	}
 
 	/**
@@ -71,77 +71,75 @@ class Source {
 	}
 
 	/**
-	 * Get a secret key, by $type, from postmeta.
+	 * Get a nonce, by $type, from postmeta.
 	 */
-	function get_key( $type ) {
-		return get_post_meta( $this->post->ID, $this->get_meta_key_from_key_type( $type ), true );
+	function get_nonce( $type ) {
+		return get_post_meta( $this->post->ID, $this->get_meta_key_from_nonce_type( $type ), true );
 	}
 
 	/**
-	 * Get a secret key, by $type, from postmeta. Generate a new one if necessary.
+	 * Get a nonce, by $type, from postmeta. Generate a new one if necessary.
 	 */
-	function force_get_key( $type ) {
-		$key = $this->get_key( $type );
-		if ( $key ) {
-			return $key;
+	function force_get_nonce( $type ) {
+		$nonce = $this->get_nonce( $type );
+		if ( $nonce ) {
+			return $nonce;
 		}
 
-		return $this->generate_key( $type );
+		return $this->generate_nonce( $type );
 	}
 
 	/**
-	 * Generate a secret key, by $type, and store it in postmeta.
+	 * Generate a nonce, by $type, and store it in postmeta.
 	 */
-	function generate_key( $type ) {
-		$key = strtolower( wp_generate_password( 30, false ) );
-		update_post_meta( $this->post->ID, $this->get_meta_key_from_key_type( $type ), $key );
-		return $key;
+	function generate_nonce( $type ) {
+		$nonce = strtolower( wp_generate_password( 30, false ) );
+		update_post_meta( $this->post->ID, $this->get_meta_key_from_nonce_type( $type ), $nonce );
+		return $nonce;
 	}
 
 	/**
-	 * Delete a secret key, by $type, from postmeta.
+	 * Delete a nonce, by $type, from postmeta.
 	 */
-	function delete_key( $type ) {
-		return delete_post_meta( $this->post->ID, $this->get_meta_key_from_key_type( $type ) );
+	function delete_nonce( $type ) {
+		return delete_post_meta( $this->post->ID, $this->get_meta_key_from_nonce_type( $type ) );
 	}
 
 	/**
-	 * Check a string against a secret key stored in postmeta, by $type.
+	 * Check a string against a nonce stored in postmeta, by $type.
 	 */
-	function validate_key( $type, $value ) {
+	function validate_nonce( $type, $value ) {
 		$value = (string) $value;
-		return ( $value !== '' && $value === $this->get_key( $type ) );
+		return ( $value !== '' && $value === $this->get_nonce( $type ) );
 	}
 
 	/**
-	 * Convert secret key shorthands to the underlying postmeta key.
+	 * Convert nonce types to the underlying postmeta key.
 	 */
-	protected function get_meta_key_from_key_type( $type ) {
+	protected function get_meta_key_from_nonce_type( $type ) {
 		switch ( $type ) {
 			case 'edit' :
-				return '_source_edit_key';
 			case 'confirm' :
-				return '_source_email_confirm';
 			case 'admin' :
-				return '_source_admin_nonce';
+				return '_source_nonce_' . $type;
 			default :
-				throw new Exception( 'Invalid key type' );
+				throw new Exception( 'Invalid nonce type' );
 		}
 	}
 
 	function get_email_confirmation_link() {
-		$key = $this->force_get_key( 'confirm' );
-		return home_url( sprintf( '/?email-confirm=%s&key=%s', $this->post->ID, $key ) );
+		$nonce = $this->force_get_nonce( 'email' );
+		return home_url( sprintf( '/?email-confirm=%s&nonce=%s', $this->post->ID, $nonce ) );
 	}
 
 	function get_admin_publish_link() {
 		return admin_url( sprintf( 'edit.php?post_type=source&source-action=publish&id=%s&nonce=%s',
-			$this->post->ID, $this->force_get_key( 'admin' ) ) );
+			$this->post->ID, $this->force_get_nonce( 'admin' ) ) );
 	}
 
 	function get_admin_trash_link() {
 		return admin_url( sprintf( 'edit.php?post_type=source&source-action=trash&id=%s&nonce=%s',
-			$this->post->ID, $this->force_get_key( 'admin' ) ) );
+			$this->post->ID, $this->force_get_nonce( 'admin' ) ) );
 	}
 
 	/**
@@ -170,10 +168,10 @@ class Source {
 	 * If successful, make the post 'pending' and send the admin an email
 	 * letting them know a post is ready for moderation.
 	 */
-	function email_confirmation_attempt( $key ) {
-		$key = (string) $key;
-		if ( $this->validate_key( 'confirm', $key ) ) {
-			$this->delete_key( 'confirm' );
+	function email_confirmation_attempt( $nonce ) {
+		$nonce = (string) $nonce;
+		if ( $this->validate_nonce( 'email', $nonce ) ) {
+			$this->delete_nonce( 'email' );
 			wp_update_post([ 'ID' => $this->post->ID, 'post_status' => 'pending' ]);
 			send_moderator_email( $this );
 			return true;
